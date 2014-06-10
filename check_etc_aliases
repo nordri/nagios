@@ -1,0 +1,37 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_etc_aliases
+#          Check if /etc/aliases is newer than /etc/aliases.db
+#          0.1
+#          November 25 2013
+#          
+#          $ ./check_etc_aliases
+# ------------------------------------------------------------------
+
+PROGNAME=$(basename $0);
+ALIASE_PATH="/etc";
+DATE_ALIASES=$(/usr/bin/stat -c %Y $ALIASE_PATH/aliases);
+DATE_ALIASES_DB=$(/usr/bin/stat -c %Y $ALIASE_PATH/aliases.db);
+
+if [[ $DATE_ALIASES_DB -gt $DATE_ALIASES ]]; then
+  echo "OK: aliases.db is newer than aliases";
+  exit 0;
+else
+  echo "CRITICAL: Somebody forgot to exec newaliases";
+  exit 2;
+fi
+

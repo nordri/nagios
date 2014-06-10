@@ -1,0 +1,95 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_screen
+#          Check the longest SCREEN process on the system.
+#          0.1
+#          November 12 2013
+#          
+#          $ ./check_screen -w DAYS -c DAYS
+##     
+# ------------------------------------------------------------------
+
+export LANG=C
+
+PROC="[s]creen";
+SCREEN_PROCS=$(ps -eo comm,pid | grep -w $PROC | awk '{ print $2 }' );
+TODAY=$(date -d "now" +%s);
+HOUR_REGEXP="^[0-9]{1,2}\:[0-9]{1,2}\:[0-9]{1,2}";
+PROGNAME=$(basename $0);
+
+MAX_TIME_RUNNING=0;
+
+# Functions
+usage () {
+  echo "Usage: $PROGNAME -w Warning -c Critical"
+}
+
+# Parse command line
+if [ "$#" -lt 4 ]; then
+  usage;
+  exit 3;
+fi
+
+# Options processing
+until [ -z "$1" ]  
+do
+  if [ $1 == "-w" ]; then
+    let VALUE=$2;
+    let WARNING=$VALUE;
+  elif [ $1 == "-c" ]; then
+    let VALUE=$2;
+    let CRITICAL=$VALUE;
+  fi
+  shift;
+done
+
+# if no open SCREEN exit
+if [ -z "$SCREEN_PROCS" ]; then
+  echo "OK: There is no open SCREEN sessions";
+  exit 0;
+fi
+
+# Body
+for i in $SCREEN_PROCS;
+do
+  START_DATE=$(ps -p ${i} -o start= );
+  if [[ ! $START_DATE =~ $HOUR_REGEXP ]]; then
+    let START_DATE_SEC=$(date -d "$START_DATE" +%s);
+    let DAYS_RUNNING=$(echo $(( ($TODAY - $START_DATE_SEC) / 86400)));
+
+    if [[ "$DAYS_RUNNING" -gt "$MAX_TIME_RUNNING" ]]; then
+      let MAX_TIME_RUNNING=$DAYS_RUNNING;
+      SCREEN_USER=$(ps -eo pid,user | grep -w $i | awk '{ print $2 }' );
+    fi
+  fi
+done
+
+# Results
+if [[ $MAX_TIME_RUNNING -lt $WARNING ]]; then
+  echo "OK: There is no open SCREEN session";
+  exit 0;
+elif [[ "$MAX_TIME_RUNNING" -ge "$WARNING" ]] && [[ "$MAX_TIME_RUNNING" -lt "$CRITICAL" ]]; then
+  echo "WARNING: There is an open SCREEN session for $WARNING days (User: $SCREEN_USER)";
+  exit 1;
+elif [[ "$MAX_TIME_RUNNING" -ge "$CRITICAL" ]]; then
+  echo "CRITICAL: There is an open SCREEN session for $MAX_TIME_RUNNING days (User: $SCREEN_USER)";
+  exit 2;
+else
+  echo "UNKNOWN";
+  exit 3;
+fi
+

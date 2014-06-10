@@ -1,0 +1,96 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_apache_auth_basic
+#          Check if dev sites are protected by auth basic
+#          0.1
+#          November 26 2013
+#          
+#          $ ./check_apache_auth_basic
+# ------------------------------------------------------------------
+
+
+URLTEMP=$(mktemp);
+BAD_URL="";
+URL_WEIRD="";
+OK_STRING="HTTP/1.1 200 OK";
+AUTHBASIC_STRING="HTTP/1.1 401 Authorization Required";
+FORBIDDEN_STRING="HTTP/1.1 403 Forbidden";
+MOVED_PERMANETLY="HTTP/1.1 301 Moved Permanently";
+EXCLUDED_URLS="CUSTOM LIST";
+let CRITICAL=0;
+PROGNAME=$(basename $0);
+
+usage () {
+  echo "Usage: $PROGNAME -u url";
+  exit 3;
+}
+
+# Parse command line
+if [ "$#" -lt 2 ]; then
+  usage;
+  exit 3;
+fi
+
+# Options processing
+until [ -z "$1" ]  
+do
+  if [ $1 == "-u" ]; then
+    VALUE=$2;
+    URLTARGET=$VALUE;
+  fi
+  shift;
+done
+
+curl -s -u USER:PASS $URLTARGET/vhostlist > $URLTEMP;
+
+
+
+for URL in $(cat $URLTEMP);
+do
+  if [[ ! $EXCLUDED_URLS =~ $URL ]];  then
+    RESULT=$(curl -s -I -L -S $URL | grep "HTTP/1.1" | tail -n 1);
+    case $RESULT in
+      *$OK_STRING*)
+        let CRITICAL=1;
+        BAD_URL="$URL -> 200; $BAD_URL";
+        ;;  
+      *$AUTHBASIC_STRING*)
+        ;;
+      *$FORBIDDEN_STRING*)
+        let CRITICAL=1;
+        BAD_URL="$URL -> 403; $BAD_URL";
+        ;;
+      *$MOVED_PERMANETLY*)
+        URL_WEIRD="$URL -> 301; $URL_WEIRD";
+        ;;
+      *)
+        URL_WEIRD="$URL, $URL_WEIRD";
+        ;;
+    esac
+  fi
+done
+
+if [[ $CRITICAL -gt 0 ]]; then
+  echo "CRITICAL: The following URLs are not protected: $BAD_URL";
+  exit 2;
+elif [[ ! -z $URL_WEIRD ]]; then
+  echo "WARNING: The following URLs are suspicious: $URL_WEIRD";
+  exit 1;
+else
+  echo "OK: All dev sites are protected";
+  exit 0;
+fi

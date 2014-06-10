@@ -1,0 +1,145 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# --
+# Check the date and mount count of the device passed by parameter. It's able to
+# manage devices not configurated to be checked by fsck (values -1 and none in
+# max mount count and date interval).
+#
+# Needs sudo without passwd to run tune2fs
+#
+# Usage: check_next_fsck -w DAYS,MOUNTS -c DAYS,MOUNTS -d DEVICE
+#
+# @author: (c) Fede Diaz nordri@gmail.com
+# @version: 1
+# @date: 2011/03/20
+# --
+
+if [ "$#" -lt 6 ]; then
+  echo "Usage: $0 -w DAYS,MOUNTS -c DAYS,MOUNTS -d DEVICE";
+  exit 3;
+fi
+
+until [ -z "$1" ]  
+do
+  if [ $1 == "-w" ]; then
+    VALUE=$2;
+    WARNING_DAYS=$(echo $VALUE | cut -d, -f1);
+    WARNING_MOUNTS=$(echo $VALUE | cut -d, -f2);
+  elif [ $1 == "-c" ]; then
+    VALUE=$2;
+    CRITICAL_DAYS=$(echo $VALUE | cut -d, -f1);
+    CRITICAL_MOUNTS=$(echo $VALUE | cut -d, -f2);
+  elif [ $1 == "-d" ]; then
+    DEVICE=$2;
+  fi
+  shift;
+done
+
+# Parsing tune2fs exits (Beware with sudo)
+TARGET_DATE=$(sudo /sbin/tune2fs -l $DEVICE | grep "Next check after" | cut -d: -f2,3,4 );
+CHECK_INTERVAL=$(sudo /sbin/tune2fs -l $DEVICE | grep "Check interval" | cut -d: -f2 );
+INTERVAL=$(echo $CHECK_INTERVAL | cut -d" " -f1);
+MOUNT_COUNT=$(sudo /sbin/tune2fs -l $DEVICE | grep "Mount count" | cut -d: -f2 );
+MAX_MOUNT_COUNT=$(sudo /sbin/tune2fs -l $DEVICE | grep "Maximum mount count" | cut -d: -f2 );
+
+# Calculating dates
+TODAY=$(date +"%s");
+EPOCH_TARGET_DATE=$(date +"%s" -d "$TARGET_DATE");
+
+let SECONDS_LEFT="$EPOCH_TARGET_DATE - $TODAY";
+
+CHECK_DATES="YES"; # Check interval = none means NO INTERVAL TIME BETWEEN MOUNTS
+if [ $INTERVAL == 0 ]; then 
+  CHECK_DATES="NO";
+else
+  let DAYS_LEFT="$SECONDS_LEFT/86400";
+fi
+
+CHECK_MOUNT_COUNT="YES"; # Maximum mount count = -1 means NO COUNT MOUNTS
+if [ $MAX_MOUNT_COUNT == -1 ]; then
+  CHECK_MOUNT_COUNT="NO";
+else
+  let MOUNT_LEFT="$MAX_MOUNT_COUNT - $MOUNT_COUNT";
+fi
+
+# Calculating WARNINGS and CRITICAL
+if [ $CHECK_DATES == "YES" ]; then
+  if [ $DAYS_LEFT -gt $WARNING_DAYS ]; then
+    VALUE="0";
+  elif [ $DAYS_LEFT -lt $CRITICAL_DAYS ]; then
+    VALUE="2";
+  else
+    VALUE="1";
+  fi
+else
+  VALUE="3";
+fi
+
+if [ $CHECK_MOUNT_COUNT == "YES" ]; then
+  if [ $MOUNT_LEFT -gt $WARNING_MOUNTS ]; then
+    VALUE=$VALUE"0";
+  elif [ $MOUNT_LEFT -lt $CRITICAL_MOUNTS ]; then
+    VALUE=$VALUE"2";
+  else
+    VALUE=$VALUE"1";
+  fi
+else
+  VALUE=$VALUE"3";
+fi
+
+# Returning the results
+case $VALUE in
+  "00")
+    echo "OK next check in $DAYS_LEFT days or $MOUNT_LEFT mounts";
+    exit 0;
+    ;;
+  "01")
+    echo "WARNING next check in $MOUNT_LEFT mounts";
+    exit 1;
+    ;;
+  "02")
+    echo "CRITICAL next check in $MOUNT_LEFT mounts";
+    exit 2;
+    ;; 
+  "10")
+    echo "WARNING next check in $DAYS_LEFT days";
+    exit 1;
+    ;;
+  "11")
+    echo "WARNING next check in $DAYS_LEFT days and $MOUNTS_LEFT mounts";
+    exit 1;
+    ;;
+  "12")
+    echo "CRITICAL next check in $MOUNT_LEFT mounts";
+    exit 2;
+    ;;
+  "20")
+    echo "CRITICAL next check in $DAYS_LEFT days";
+    exit 2;
+    ;;
+  "21")
+    echo "CRITICAL next check in $DAYS_LEFT days";
+    exit 2;
+    ;;
+  "22")
+    echo "CRITICAL next check in $DAYS_LEFT days and $MOUNTS_LEFT mounts";
+    exit 2;
+    ;;
+  "33")
+    echo "UNKNOWN Nothing to check";
+    exit 3;
+    ;;
+esac

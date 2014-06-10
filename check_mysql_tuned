@@ -1,0 +1,50 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_mysql_tunned
+#          Check if mysql uses custom tune file
+#          0.1
+#          November 25 2013
+#          
+#          $ ./check_mysql_tunned tunned_file
+# ------------------------------------------------------------------
+
+PROGNAME=$(basename $0);
+MYSQL_CONFIG_PATH="/etc/mysql";
+MYSQL_TUNNED_FILE=$1
+
+SET_INCLUDEDIR=$(grep -e "^\!includedir " $MYSQL_CONFIG_PATH/my.cnf);
+
+# Functions
+usage () {
+  echo "Usage: $PROGNAME tunned_file";
+  exit 3;
+}
+
+# Parse command line
+if [ "$#" -lt 2 ]; then
+  usage;
+  exit 3;
+fi
+
+if [[ ! -z $SET_INCLUDEDIR ]] && [[ -f $MYSQL_CONFIG_PATH/conf.d/MYSQL_TUNNED_FILE ]]; then
+  echo "OK: MySQL is tuned";
+  exit 0;
+else
+  echo "CRITICAL: MySQL is not tuned";
+  exit 2;
+fi
+

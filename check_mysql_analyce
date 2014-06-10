@@ -1,0 +1,69 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_mysql_analyce
+#          Check for problems in mysql databases
+#          0.1
+#          November 29 2013
+#          
+#          $ ./check_mysql_analyce -h host -u user -p password
+# ------------------------------------------------------------------
+
+# Functions
+usage () {
+  echo "Usage: $PROGNAME -u user -p password";
+  exit 3;
+}
+
+PROGNAME=$(basename $0);
+
+# Parse command line
+if [ "$#" -lt 4 ]; then
+  usage;
+  exit 3;
+fi
+
+# Options processing
+until [ -z "$1" ]  
+do
+  if [ $1 == "-u" ]; then
+    VALUE=$2;
+    USER=$VALUE;
+  fi
+  if [ $1 == "-p" ]; then
+    VALUE=$2;
+    PASSWD=$VALUE;
+  fi
+  shift;
+done
+
+START_TIME=$(date );
+OUTPUT="/var/www/html/mysql_analyce.txt";
+MYSQLANALYCE_OPT="--check --check-only-changed --all-databases --silent "
+mysqlanalyze $MYSQLANALYCE_OPT --user=$USER --password=$PASSWD > $OUTPUT;
+END_TIME=$(date );
+
+RESULT=$(grep Error $OUTPUT);
+
+if [[ -z $RESULT ]]; then
+  echo "OK: MySQL Tables nice | $START_TIME;;$END_TIME";
+  exit 0;
+else
+  echo "CRITICAL: Some tables are marked as crashed | $RESULT;;$START_TIME;;$END_TIME";
+  exit 2;
+fi
+
+

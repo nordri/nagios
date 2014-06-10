@@ -1,0 +1,60 @@
+#!/bin/bash
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+# ------------------------------------------------------------------
+# [(c) Fede Diaz] [nordri@gmail.com] check_robotstxt
+#          Check if robots.txt contains any Disallow line.
+#          0.1
+#          November 12 2013
+#          
+#          $ ./check_screen -w DAYS -c DAYS
+##     
+# ------------------------------------------------------------------
+
+# Functions
+usage () {
+  echo "Usage: $PROGNAME -u url";
+  exit 3;
+}
+
+PROGNAME=$(basename $0);
+
+# Parse command line
+if [ "$#" -lt 2 ]; then
+  usage;
+  exit 3;
+fi
+
+# Options processing
+until [ -z "$1" ]  
+do
+  if [ $1 == "-u" ]; then
+    VALUE=$2;
+    URL=$VALUE;
+  fi
+  shift;
+done
+
+
+RESULT=$(curl -s $URL/robots.txt | grep "Disallow \*");
+
+if [[ -z $RESULT ]]; then 
+  echo "OK: robots.txt is clean"; 
+  exit 0;
+else 
+  echo "CRITICAL: Disallow found"; 
+  exit 2;
+fi
+
