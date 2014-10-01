@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Script para comprobar la fecha y el tamaño
+# de las copias de seguridad.
+# Copia muy antigua
+# Copia vacia
+#
+# fdiaz@isotrol.com
+# Octubre 2014
+
+# Esta funcion devuelve cuantos dias han pasado
+# desde la fecha que se pasa como argumento
+# Formato de entrada YYYY-MM-DD
+function howManyDaysSince () {
+  TODAY=$(date +"%s");
+  TARGET=$(date -d $1 +"%s");
+  let RESULT=$(echo $(( ($TODAY-$TARGET) / 86400)));
+  echo $RESULT;
+}
+
+
+BACKUPPATH="/mnt/export_nfs";
+HOSTNAME=$(hostname -a);
+BACKUPDIR=$(ls -1tr $BACKUPPATH/$HOSTNAME/exports/ | tail -n1);
+BACKUPDIRDATE=$(stat --format="%y" $BACKUPPATH/$HOSTNAME/exports/$BACKUPDIR | cu                                                                                   t -f1 -d" ");
+DIRSIZE=$(du -c $BACKUPPATH/$HOSTNAME/exports/$BACKUPDIR | tail -n1 | cut -f1);
+DAYS=$(howManyDaysSince $BACKUPDIRDATE);
+
+if [[ "$DIRSIZE" > 1000000 ]] && [[ "$DAYS" -lt 2 ]]; then
+  echo "OK - $BACKUPDIR: Tamaño: $DIRSIZE Fecha: $BACKUPDIRDATE";
+  exit 0;
+else
+  echo "CRITICAL - $BACKUPDIR: Tamaño: $DIRSIZE Fecha: $BACKUPDIRDATE";
+  exit 2;
+fi

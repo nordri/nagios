@@ -1,0 +1,30 @@
+#!/bin/bash
+# script para cargar las variables
+# de entorno de ORACLE y comprobar
+# la conectividad al servidor
+#
+# Federico Diaz fdiaz@isotrol.com
+# Septiembre 2014
+
+export ORACLE_HOME=/opt/instantclient_11_2
+export LD_LIBRARY_PATH=/opt/instantclient_11_2
+
+PORT=1521;
+
+while getopts s:d:p: opt; do
+  case $opt in
+    s)
+      SERVER=$OPTARG
+      ;;
+    d)
+      DATABASE=$OPTARG
+      ;;
+    p)
+      PORT=$OPTARG
+      ;;
+  esac
+done
+
+# Se llama al plugin de nagios con los parametros que se pasan en linea de comando. No hay comprobacion
+/usr/local/nagios/libexec/check_oracle_health --user=USUARIO --password=CONTRASEÑA --connect=$SERVER:$PORT/$DATABASE --mode connection-time --method=sqlplus
+
