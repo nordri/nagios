@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Check para comprobar que los tomcat muestran
+# la página incial que deben. Todo los componentes
+# de TomCat funcionan si logran mostrar la pagina
+# que se pasa como argumento.
+#
+# Federico Diaz fdiaz@isotrol.com
+# Octubre 2014
+#
+
+while getopts u:s: opt; do
+  case $opt in
+	u)
+	  SERVER=$OPTARG
+	  ;;
+	s)
+	  STRING=$OPTARG
+	  ;;
+  esac
+done
+
+OUTPUT=$(mktemp );
+
+curl -s -o $OUTPUT $SERVER > /dev/null
+RES=$(grep ${STRING} $OUTPUT);
+
+if [[ ! -z "$RES" ]]; then
+  echo "OK - $SERVER corriendo";
+  exit 0;
+else
+  echo "CRITICAL - La aplicacion $SERVER falla";
+  exit 2;
+fi
+
+rm $OUTPUT
